@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import br.com.leonardoamaral.todolist.utils.Utils;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
@@ -34,9 +35,9 @@ public class TaskController {
                     .body("A data de início deve ser maior do que a data atual");
         }
 
-        if(taskModel.getStartAt().isAfter(taskModel.getEndAt())) {
+        if (taskModel.getStartAt().isAfter(taskModel.getEndAt())) {
             return ResponseEntity.badRequest()
-                    .body("A data de início deve ser menor do que a data de término"); 
+                    .body("A data de início deve ser menor do que a data de término");
         }
 
         var task = taskRepository.save(taskModel);
@@ -46,16 +47,24 @@ public class TaskController {
     @GetMapping("/")
     public List<TaskModel> list(HttpServletRequest request) {
         var idUser = request.getAttribute("idUser");
-        var tasks = this.taskRepository.findTaskByIdUser((UUID)idUser);
+        var tasks = this.taskRepository.findTaskByIdUser((UUID) idUser);
         return tasks;
     }
 
     @PutMapping("/{id}")
-    public TaskModel update(@RequestBody TaskModel taskModel, HttpServletRequest request, @PathVariable UUID id) {
+    public ResponseEntity update(@RequestBody TaskModel taskModel, HttpServletRequest request, @PathVariable UUID id) {
 
+        var task = this.taskRepository.findById(id).orElse(null);
         var idUser = request.getAttribute("idUser");
-        taskModel.setIdUser((UUID)idUser);
-        taskModel.setId(id);
-        return this.taskRepository.save(taskModel);
+
+        if (!task.getIdUser().equals(idUser) || task == null) {
+            return ResponseEntity.badRequest()
+                    .body("Tarefa não encontrada");
+        }
+
+        Utils.copyNonNullProperties(taskModel, task);
+        var taskUpdated = this.taskRepository.save(task);
+
+        return ResponseEntity.ok().body(taskUpdated);
     }
 }
